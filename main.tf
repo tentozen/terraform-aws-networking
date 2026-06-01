@@ -98,9 +98,9 @@ module "fck_nat" {
   instance_type = "t4g.nano"
   ha_mode       = false
 
-  # When proxy_eni_id is set, proxy handles app subnet routing — fck-nat only
-  # manages the proxy subnet route table. Otherwise fck-nat manages app routes.
-  update_route_tables = true
+  # When proxy_eni_id is set, proxy handles app subnet routing — disable fck-nat
+  # route management entirely (user_data also creates routes on boot).
+  update_route_tables = var.proxy_eni_id == ""
   route_tables_ids = var.proxy_eni_id != "" ? {} : {
     "app-${each.key}" = aws_route_table.app[each.key].id
   }
