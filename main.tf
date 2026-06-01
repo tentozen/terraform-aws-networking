@@ -98,8 +98,10 @@ module "fck_nat" {
   instance_type = "t4g.nano"
   ha_mode       = false
 
+  # When proxy_eni_id is set, proxy handles app subnet routing — fck-nat only
+  # manages the proxy subnet route table. Otherwise fck-nat manages app routes.
   update_route_tables = true
-  route_tables_ids = {
+  route_tables_ids = var.proxy_eni_id != "" ? {} : {
     "app-${each.key}" = aws_route_table.app[each.key].id
   }
 
@@ -133,13 +135,22 @@ resource "aws_route_table" "app" {
   tags = { Name = "${local.tenant}-rt-app-${each.key}" }
 }
 
-# Route managed by us for NAT Gateway, by fck-nat module when use_fck_nat = true
+# Route managed by us for NAT Gateway (when no proxy)
 resource "aws_route" "app_nat" {
-  for_each = var.deploy_nat && !var.use_fck_nat ? local.az_index : {}
+  for_each = var.deploy_nat && !var.use_fck_nat && var.proxy_eni_id == "" ? local.az_index : {}
 
   route_table_id         = aws_route_table.app[each.key].id
   destination_cidr_block = "0.0.0.0/0"
   nat_gateway_id         = aws_nat_gateway.main[each.key].id
+}
+
+# Route app subnet through proxy ENI (when proxy is deployed)
+resource "aws_route" "app_proxy" {
+  for_each = var.proxy_eni_id != "" ? local.az_index : {}
+
+  route_table_id         = aws_route_table.app[each.key].id
+  destination_cidr_block = "0.0.0.0/0"
+  network_interface_id   = var.proxy_eni_id
 }
 
 # Data: shared, no default route (isolated)
