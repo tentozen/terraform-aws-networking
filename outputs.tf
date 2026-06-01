@@ -29,3 +29,7 @@ output "internal_domain" {
 output "vpc_cidr" {
   value = var.vpc_cidr
 }
+
+output "proxy_subnet_ids" {
+  value = { for az, subnet in aws_subnet.proxy : az => subnet.id }
+}

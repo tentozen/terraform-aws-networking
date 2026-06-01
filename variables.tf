@@ -39,3 +39,9 @@ variable "internal_domain" {
   type        = string
   description = "Internal domain for Route53 private hosted zone (e.g. dojo.internal)"
 }
+
+variable "deploy_proxy_subnet" {
+  type        = bool
+  default     = false
+  description = "Deploy a dedicated proxy subnet for transparent egress proxy. Routes to fck-nat/NAT GW."
+}

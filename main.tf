@@ -172,6 +172,56 @@ resource "aws_route_table_association" "data" {
 }
 
 # =============================================================================
+# Proxy Subnet (optional — for transparent egress proxy)
+# =============================================================================
+
+resource "aws_subnet" "proxy" {
+  for_each = var.deploy_proxy_subnet ? local.az_index : {}
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = cidrsubnet(var.vpc_cidr, 8, each.value + 64)
+  availability_zone = each.key
+
+  tags = { Name = "${local.tenant}-proxy-${each.key}" }
+}
+
+resource "aws_route_table" "proxy" {
+  count  = var.deploy_proxy_subnet ? 1 : 0
+  vpc_id = aws_vpc.main.id
+
+  tags = { Name = "${local.tenant}-rt-proxy" }
+}
+
+# Proxy subnet routes to NAT (fck-nat or NAT GW) — same as app subnet
+resource "aws_route" "proxy_nat" {
+  for_each = var.deploy_proxy_subnet && var.deploy_nat && !var.use_fck_nat ? { "proxy" = true } : {}
+
+  route_table_id         = aws_route_table.proxy[0].id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.main[var.azs[0]].id
+}
+
+# When using fck-nat, add the proxy route table to fck-nat's managed tables
+# so fck-nat creates the route for us. We handle this by creating a separate
+# fck-nat route for the proxy subnet.
+resource "aws_route" "proxy_fck_nat" {
+  for_each = var.deploy_proxy_subnet && var.deploy_nat && var.use_fck_nat ? { "proxy" = true } : {}
+
+  route_table_id         = aws_route_table.proxy[0].id
+  destination_cidr_block = "0.0.0.0/0"
+  network_interface_id   = module.fck_nat[var.azs[0]].eni_id
+
+  depends_on = [module.fck_nat]
+}
+
+resource "aws_route_table_association" "proxy" {
+  for_each = var.deploy_proxy_subnet ? local.az_index : {}
+
+  subnet_id      = aws_subnet.proxy[each.key].id
+  route_table_id = aws_route_table.proxy[0].id
+}
+
+# =============================================================================
 # VPC Endpoints
 # =============================================================================
 
@@ -183,6 +233,7 @@ resource "aws_vpc_endpoint" "s3" {
     [aws_route_table.public.id],
     [for rt in aws_route_table.app : rt.id],
     [aws_route_table.data.id],
+    var.deploy_proxy_subnet ? [aws_route_table.proxy[0].id] : [],
   )
 
   tags = { Name = "${local.tenant}-s3-endpoint" }
