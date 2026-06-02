@@ -51,3 +51,9 @@ variable "proxy_eni_id" {
   default     = ""
   description = "ENI ID of the proxy instance. When set, app subnet routes 0.0.0.0/0 to this ENI instead of NAT. Requires deploy_proxy_subnet = true."
 }
+
+variable "deploy_ssm_endpoints" {
+  type        = bool
+  default     = false
+  description = "Deploy VPC interface endpoints for SSM (ssm, ssmmessages, ec2messages). ~$22/mo per AZ."
+}

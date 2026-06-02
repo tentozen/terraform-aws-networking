@@ -251,6 +251,42 @@ resource "aws_vpc_endpoint" "s3" {
 }
 
 # =============================================================================
+# VPC Endpoints — SSM (optional)
+# =============================================================================
+
+resource "aws_security_group" "vpc_endpoints" {
+  count = var.deploy_ssm_endpoints ? 1 : 0
+
+  name        = "${local.tenant}-vpc-endpoints-sg"
+  description = "Allow HTTPS from VPC for interface endpoints"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "HTTPS from VPC"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  tags = { Name = "${local.tenant}-vpc-endpoints-sg" }
+}
+
+resource "aws_vpc_endpoint" "ssm" {
+  for_each = var.deploy_ssm_endpoints ? toset(["ssm", "ssmmessages", "ec2messages"]) : toset([])
+
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.${each.key}"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+
+  subnet_ids         = [for az, subnet in aws_subnet.app : subnet.id]
+  security_group_ids = [aws_security_group.vpc_endpoints[0].id]
+
+  tags = { Name = "${local.tenant}-${each.key}-endpoint" }
+}
+
+# =============================================================================
 # Route53 Private Hosted Zone
 # =============================================================================
 
