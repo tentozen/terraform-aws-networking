@@ -57,3 +57,9 @@ variable "deploy_ssm_endpoints" {
   default     = false
   description = "Deploy VPC interface endpoints for SSM (ssm, ssmmessages, ec2messages). ~$22/mo per AZ."
 }
+
+variable "enable_dns_query_logging" {
+  type        = bool
+  default     = false
+  description = "Enable Route53 Resolver DNS query logging to CloudWatch Logs. ~$0.60/million queries."
+}

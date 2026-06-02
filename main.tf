@@ -288,6 +288,32 @@ resource "aws_vpc_endpoint" "ssm" {
 }
 
 # =============================================================================
+# DNS Query Logging (optional)
+# =============================================================================
+
+resource "aws_cloudwatch_log_group" "dns_query_logs" {
+  count             = var.enable_dns_query_logging ? 1 : 0
+  name              = "/dns/${local.tenant}"
+  retention_in_days = 30
+
+  tags = { Name = "${local.tenant}-dns-query-logs" }
+}
+
+resource "aws_route53_resolver_query_log_config" "main" {
+  count            = var.enable_dns_query_logging ? 1 : 0
+  name             = "${local.tenant}-dns-query-log"
+  destination_arn  = aws_cloudwatch_log_group.dns_query_logs[0].arn
+
+  tags = { Name = "${local.tenant}-dns-query-log" }
+}
+
+resource "aws_route53_resolver_query_log_config_association" "main" {
+  count                        = var.enable_dns_query_logging ? 1 : 0
+  resolver_query_log_config_id = aws_route53_resolver_query_log_config.main[0].id
+  resource_id                  = aws_vpc.main.id
+}
+
+# =============================================================================
 # Route53 Private Hosted Zone
 # =============================================================================
 

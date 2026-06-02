@@ -29,9 +29,10 @@ module "networking" {
   vpc_cidr             = "10.0.0.0/16"
   azs                  = ["ap-south-1a"]
   internal_domain      = "myapp.internal"
-  deploy_proxy_subnet  = true
-  proxy_eni_id         = "eni-xxx"          # from egress-proxy terraform output
-  deploy_ssm_endpoints = true
+  deploy_proxy_subnet    = true
+  proxy_eni_id           = "eni-xxx"          # from egress-proxy terraform output
+  deploy_ssm_endpoints   = true
+  enable_dns_query_logging = true
 }
 ```
 
@@ -49,6 +50,7 @@ module "networking" {
 | Route tables | Per tier, with appropriate routing |
 | S3 VPC endpoint | Gateway endpoint on all route tables |
 | SSM VPC endpoints (optional) | Interface endpoints for ssm, ssmmessages, ec2messages |
+| DNS query logging (optional) | Route53 Resolver query logs → CloudWatch Logs |
 | Route53 private zone | Internal DNS (e.g. `myapp.internal`) |
 
 ## Variables
@@ -66,6 +68,7 @@ module "networking" {
 | `deploy_proxy_subnet` | bool | `false` | Deploy a dedicated proxy subnet for transparent egress proxy |
 | `proxy_eni_id` | string | `""` | ENI ID of proxy instance. When set, app subnet routes through proxy instead of NAT |
 | `deploy_ssm_endpoints` | bool | `false` | Deploy SSM VPC interface endpoints (~$22/mo per AZ) |
+| `enable_dns_query_logging` | bool | `false` | Enable Route53 Resolver DNS query logging (~$0.60/million queries) |
 
 ## Outputs
 
