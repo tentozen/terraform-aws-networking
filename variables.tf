@@ -46,12 +46,6 @@ variable "deploy_proxy_subnet" {
   description = "Deploy a dedicated proxy subnet for transparent egress proxy. Routes to fck-nat/NAT GW."
 }
 
-variable "proxy_eni_id" {
-  type        = string
-  default     = ""
-  description = "ENI ID of the proxy instance. When set, app subnet routes 0.0.0.0/0 to this ENI instead of NAT. Requires deploy_proxy_subnet = true."
-}
-
 variable "deploy_ssm_endpoints" {
   type        = bool
   default     = false

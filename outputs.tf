@@ -33,3 +33,7 @@ output "vpc_cidr" {
 output "proxy_subnet_ids" {
   value = { for az, subnet in aws_subnet.proxy : az => subnet.id }
 }
+
+output "app_route_table_ids" {
+  value = { for az, rt in aws_route_table.app : az => rt.id }
+}
