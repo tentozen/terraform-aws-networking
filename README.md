@@ -6,7 +6,7 @@ TenToZen's opinionated AWS networking module — 3-tier VPC with public, app, an
 
 ```hcl
 module "networking" {
-  source = "git::git@github.com:tentozen/terraform-aws-networking.git?ref=v0.0.2"
+  source = "git::git@github.com:tentozen/terraform-aws-networking.git?ref=v0.0.4"
 
   app_name        = "myapp"
   environment     = "prod"
@@ -21,20 +21,21 @@ module "networking" {
 
 ```hcl
 module "networking" {
-  source = "git::git@github.com:tentozen/terraform-aws-networking.git?ref=v0.0.2"
+  source = "git::git@github.com:tentozen/terraform-aws-networking.git?ref=v0.0.4"
 
-  app_name             = "myapp"
-  environment          = "prod"
-  region               = "ap-south-1"
-  vpc_cidr             = "10.0.0.0/16"
-  azs                  = ["ap-south-1a"]
-  internal_domain      = "myapp.internal"
+  app_name               = "myapp"
+  environment            = "prod"
+  region                 = "ap-south-1"
+  vpc_cidr               = "10.0.0.0/16"
+  azs                    = ["ap-south-1a"]
+  internal_domain        = "myapp.internal"
   deploy_proxy_subnet    = true
-  proxy_eni_id           = "eni-xxx"          # from egress-proxy terraform output
   deploy_ssm_endpoints   = true
   enable_dns_query_logging = true
 }
 ```
+
+The proxy instance and app→proxy route are managed separately (e.g. in an egress-proxy terraform project that reads `app_route_table_ids` via `terraform_remote_state`).
 
 ## What gets created
 
@@ -66,7 +67,6 @@ module "networking" {
 | `use_fck_nat` | bool | `false` | Use fck-nat (~$3/mo) instead of managed NAT Gateway (~$32/mo) |
 | `internal_domain` | string | (required) | Internal domain for Route53 private zone |
 | `deploy_proxy_subnet` | bool | `false` | Deploy a dedicated proxy subnet for transparent egress proxy |
-| `proxy_eni_id` | string | `""` | ENI ID of proxy instance. When set, app subnet routes through proxy instead of NAT |
 | `deploy_ssm_endpoints` | bool | `false` | Deploy SSM VPC interface endpoints (~$22/mo per AZ) |
 | `enable_dns_query_logging` | bool | `false` | Enable Route53 Resolver DNS query logging (~$0.60/million queries) |
 
@@ -81,6 +81,7 @@ module "networking" {
 | `data_subnet_ids` | Map of AZ → data subnet ID |
 | `proxy_subnet_ids` | Map of AZ → proxy subnet ID (empty if proxy disabled) |
 | `nat_public_ips` | Map of AZ → NAT EIP (empty if NAT disabled or using fck-nat) |
+| `app_route_table_ids` | Map of AZ → app route table ID |
 | `private_zone_id` | Route53 private hosted zone ID |
 | `internal_domain` | Internal domain name |
 
@@ -95,9 +96,10 @@ module "networking" {
 
 ### Egress proxy support
 
+- **NAT manages the last subnet before exit** — when `deploy_proxy_subnet = true`, NAT (fck-nat or NAT Gateway) manages the proxy route table instead of the app route table. The app→proxy route is managed separately by the egress-proxy terraform.
 - **Dedicated proxy subnet** — avoids routing loops. Proxy subnet routes to NAT, app subnet routes to proxy.
-- **`proxy_eni_id`** — when set, app subnet `0.0.0.0/0` routes to the proxy ENI instead of NAT. The proxy instance (deployed separately) intercepts and filters traffic.
-- **fck-nat route management** — automatically disabled when `deploy_proxy_subnet = true`. fck-nat's service monitors route tables and would recreate routes that conflict with proxy routing.
+- **`app_route_table_ids` output** — allows the egress-proxy terraform to create the `0.0.0.0/0 → proxy ENI` route on the app route table via `terraform_remote_state`, without a round-trip back to this module.
+- **Removing the proxy** — set `deploy_proxy_subnet = false`. NAT switches back to managing the app route table. Destroy the egress-proxy terraform first (removes the app→proxy route and the instance).
 
 ### SSM VPC endpoints
 
